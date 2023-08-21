@@ -115,7 +115,7 @@
                 const endDate = interval[1];
                 const refreshPeriod = (endDate - interval[0]) / (1000 * 60 * 60 * 24);
                 return {
-                    date: endDate.toISOString().split('T')[0],  // YYYY-MM-DD format
+                    date: moment(endDate).format("YYYY-MM-DD"),  // YYYY-MM-DD format
                     refreshPeriod: refreshPeriod
                 };
             });
