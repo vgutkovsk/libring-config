@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Libring Backfill Request Parser</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-light.min.css">
+</head>
+
+<body>
+
+<div class="container mt-5">
+    <h1 class="mb-4">Libring Backfill Request Parser</h1>
+    <h5>This app parses analytic libring backfill requests.</h5>
+
+    <form id="requestForm">
+        <div id="alertBox" class="alert alert-danger" role="alert" style="display: none;">
+            Please enter some text to process.
+        </div>
+        <div class="form-group">
+            <textarea class="form-control" id="requestTextArea" rows="20"></textarea>
+        </div>
+    </form>
+    <button id="copyButton" class="btn btn-secondary mt-2" onclick="copyToClipboard()" style="display: none;">Copy JSON</button>
+
+
+    <!-- Here, you can display the output/result of the processed text -->
+    <div id="output" class="mt-4"></div>
+</div>
+
+
+<script>
+    document.getElementById('requestTextArea').addEventListener('input', processText);
+
+    function processText() {
+        let request = document.getElementById('requestTextArea').value;
+        
+        if (request !== "") {
+            try {
+                let json_output = getEtlConfig(request);
+                
+                // Create a pre element for JSON with syntax highlighting
+                let pre = document.createElement('pre');
+                let code = document.createElement('code');
+                code.classList.add('language-json');
+                code.textContent = json_output;
+                pre.appendChild(code);
+                document.getElementById('output').innerHTML = '';
+                document.getElementById('output').appendChild(pre);
+                
+                document.getElementById('copyButton').style.display = 'block';
+                document.getElementById('alertBox').style.display = 'none';
+                hljs.highlightElement(code);
+            } catch (e) {
+                document.getElementById('output').innerHTML = '';
+                document.getElementById('copyButton').style.display = 'none';
+                document.getElementById('alertBox').innerText = "Parsing error: " + e.message;
+                document.getElementById('alertBox').style.display = 'block';
+            }
+        } else {
+            document.getElementById('output').innerHTML = '';
+            document.getElementById('alertBox').innerText = "Please enter some text to process.";
+            document.getElementById('alertBox').style.display = 'block';
+            document.getElementById('copyButton').style.display = 'none';
+        }
+    }
+
+    function parseAnalyticRequestItem(requestItemStr) {
+        const pattern = /^(-\s)?(.+?):\s(.+)$/;
+        const match = pattern.exec(requestItemStr);
+        const dateFormat = "YYYY-MM-DD";
+
+        if (match) {
+            const connectionName = match[2];
+            const dateStr = match[3];
+
+            const dateParts = dateStr.split(',').map(part => part.trim());
+
+            const dateIntervals = [];
+
+            for (let part of dateParts) {
+                let startDate, endDate;
+
+                if (part.includes('to')) {
+                    [startDate, endDate] = part.split('to').map(date => moment(date.trim(), dateFormat, true));
+                } else {
+                    startDate = endDate = moment(part.trim(), dateFormat, true);
+                }
+
+                if (startDate.isValid() && endDate.isValid()) {
+                    dateIntervals.push([startDate.toDate(), endDate.toDate()]);
+                } else {
+                    throw new Error(`'${requestItemStr}' doesn't match the expected format`);
+                }
+            }
+
+            return {
+                connectionName: connectionName,
+                dateIntervals: dateIntervals
+            };
+        } else {
+            throw new Error(`'${requestItemStr}' doesn't match the expected format`);
+        }
+    }
+
+    function formatEtlConfig(analyticRequest) {
+        const config = {};
+
+        for (let item of analyticRequest) {
+            config[item.connectionName] = item.dateIntervals.map(interval => {
+                const endDate = interval[1];
+                const refreshPeriod = (endDate - interval[0]) / (1000 * 60 * 60 * 24);
+                return {
+                    date: endDate.toISOString().split('T')[0],  // YYYY-MM-DD format
+                    refreshPeriod: refreshPeriod
+                };
+            });
+        }
+
+        return JSON.stringify(config, null, 4);
+    }
+
+    function getEtlConfig(request) {
+        const requestItems = request.split('\n').map(item => item.trim()).filter(item => item !== "");
+
+        const analyticRequest = [];
+
+        for (let requestItem of requestItems) {
+            const analyticRequestItem = parseAnalyticRequestItem(requestItem);
+            analyticRequest.push(analyticRequestItem);
+        }
+
+        return formatEtlConfig(analyticRequest);
+    }
+
+
+    function copyToClipboard() {
+        let jsonString = document.querySelector('#output code').innerText;
+        let textArea = document.createElement("textarea");
+        textArea.value = jsonString;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        alert("JSON copied to clipboard!");
+    }
+</script>
+
+</body>
+
+</html>
