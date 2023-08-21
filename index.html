@@ -7,6 +7,7 @@
     <title>Libring Backfill Request Parser</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-light.min.css">
 </head>
@@ -16,11 +17,12 @@
 <div class="container mt-5">
     <h1 class="mb-4">Libring Backfill Request Parser</h1>
     <h5>This app parses analytic libring backfill requests.</h5>
+    <div id="copyAlertBox"></div>
+    <div id="alertBox" class="alert alert-danger" role="alert" style="display: none;">
+        Please enter some text to process.
+    </div>
 
     <form id="requestForm">
-        <div id="alertBox" class="alert alert-danger" role="alert" style="display: none;">
-            Please enter some text to process.
-        </div>
         <div class="form-group">
             <textarea class="form-control" id="requestTextArea" rows="20"></textarea>
         </div>
@@ -137,16 +139,22 @@
         return formatEtlConfig(analyticRequest);
     }
 
-
     function copyToClipboard() {
-        let jsonString = document.querySelector('#output code').innerText;
-        let textArea = document.createElement("textarea");
-        textArea.value = jsonString;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textArea);
-        alert("JSON copied to clipboard!");
+        let codeElement = document.querySelector('#output code');
+        let range = document.createRange();
+        range.selectNode(codeElement);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        window.getSelection().removeAllRanges();
+
+        // Display the Bootstrap alert
+        document.getElementById('copyAlertBox').innerHTML = `
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                JSON copied to clipboard!
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
     }
 </script>
 
