@@ -115,7 +115,7 @@
         for (let item of analyticRequest) {
             config[item.connectionName] = item.dateIntervals.map(interval => {
                 const endDate = interval[1];
-                const refreshPeriod = (endDate - interval[0]) / (1000 * 60 * 60 * 24);
+                const refreshPeriod = Math.round((endDate - interval[0]) / (1000 * 60 * 60 * 24));
                 return {
                     "date": moment(endDate).format("YYYY-MM-DD"),  // YYYY-MM-DD format
                     "refresh_period": refreshPeriod
