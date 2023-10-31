@@ -110,9 +110,9 @@
 
         for (let item of connectionDates) {
             config.push({
-                "connection": moment(item[0]).format('YYYY-MM-DD'),
+                "connection": item[0],
                 "start_date": moment(item[1]).format('YYYY-MM-DD'),
-                "end_date": item[2]
+                "end_date": moment(item[2]).format('YYYY-MM-DD')
             });
         }
 
