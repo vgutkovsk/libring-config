@@ -75,14 +75,13 @@
         const pattern = /^(-\s)?(.+?):\s(.+)$/;
         const match = pattern.exec(requestItemStr);
         const dateFormat = "YYYY-MM-DD";
+        const connectionDates = [];
 
         if (match) {
             const connectionName = match[2];
             const dateStr = match[3];
 
             const dateParts = dateStr.split(',').map(part => part.trim());
-
-            const dateIntervals = [];
 
             for (let part of dateParts) {
                 let startDate, endDate;
@@ -94,32 +93,26 @@
                 }
 
                 if (startDate.isValid() && endDate.isValid()) {
-                    dateIntervals.push([startDate.toDate(), endDate.toDate()]);
+                    connectionDates.push([connectionName, startDate.toDate(), endDate.toDate()]);
                 } else {
                     throw new Error(`'${requestItemStr}' doesn't match the expected format`);
                 }
             }
 
-            return {
-                connectionName: connectionName,
-                dateIntervals: dateIntervals
-            };
+            return connectionDates;
         } else {
             throw new Error(`'${requestItemStr}' doesn't match the expected format`);
         }
     }
 
-    function formatEtlConfig(analyticRequest) {
-        const config = {};
+    function formatEtlConfig(connectionDates) {
+        const config = [];
 
-        for (let item of analyticRequest) {
-            config[item.connectionName] = item.dateIntervals.map(interval => {
-                const endDate = interval[1];
-                const refreshPeriod = Math.round((endDate - interval[0]) / (1000 * 60 * 60 * 24));
-                return {
-                    "date": moment(endDate).format("YYYY-MM-DD"),  // YYYY-MM-DD format
-                    "refresh_period": refreshPeriod
-                };
+        for (let item of connectionDates) {
+            config.push({
+                "connection": moment(item[0]).format('YYYY-MM-DD'),
+                "start_date": moment(item[1]).format('YYYY-MM-DD'),
+                "end_date": item[2]
             });
         }
 
@@ -128,15 +121,8 @@
 
     function getEtlConfig(request) {
         const requestItems = request.split('\n').map(item => item.trim()).filter(item => item !== "");
-
-        const analyticRequest = [];
-
-        for (let requestItem of requestItems) {
-            const analyticRequestItem = parseAnalyticRequestItem(requestItem);
-            analyticRequest.push(analyticRequestItem);
-        }
-
-        return formatEtlConfig(analyticRequest);
+        const connectionDates = requestItems.map(item => parseAnalyticRequestItem(item)).flat();
+        return formatEtlConfig(connectionDates);
     }
 
     function copyToClipboard() {
